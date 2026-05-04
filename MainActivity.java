@@ -1,62 +1,75 @@
-package com.example.latitudeandlongitude;
+package com.example.locationapp;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.os.Bundle;
+import android.widget.Button;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
-import android.Manifest;
-import android.app.AlertDialog;
-import android.content.pm.PackageManager;
-import android.location.Location;
-import android.location.LocationManager;
-import android.os.Bundle;
-import android.widget.Button;
-import android.widget.Toast;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 
 public class MainActivity extends AppCompatActivity {
 
-    Button btnLocation;
-    LocationManager locationManager;
+    private FusedLocationProviderClient fusedLocationClient;
+    private static final int LOCATION_PERMISSION_REQUEST = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnLocation = findViewById(R.id.btnLocation);
+        Button btn = findViewById(R.id.btnLocation);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        btn.setOnClickListener(v -> getLocation());
+    }
 
-        // Request permission
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+    private void getLocation() {
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
-        btnLocation.setOnClickListener(v -> {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST);
+            return;
+        }
 
-            if (ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.ACCESS_FINE_LOCATION)
-                    != PackageManager.PERMISSION_GRANTED) {
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, location -> {
+                    if (location != null) {
+                        double lat = location.getLatitude();
+                        double lon = location.getLongitude();
 
-                Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
-                return;
-            }
+                        new AlertDialog.Builder(this)
+                                .setTitle("Current Location")
+                                .setMessage("Latitude: " + lat + "\nLongitude: " + lon)
+                                .setPositiveButton("OK", null)
+                                .show();
+                    } else {
+                        new AlertDialog.Builder(this)
+                                .setMessage("Turn ON GPS and try again")
+                                .setPositiveButton("OK", null)
+                                .show();
+                    }
+                });
+    }
 
-            Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
 
-            if (location != null) {
-                double latitude = location.getLatitude();
-                double longitude = location.getLongitude();
+        if (requestCode == LOCATION_PERMISSION_REQUEST &&
+                grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                // Show Alert Dialog
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle("Current Location");
-                builder.setMessage("Latitude: " + latitude + "\nLongitude: " + longitude);
-                builder.setPositiveButton("OK", null);
-                builder.show();
-
-            } else {
-                Toast.makeText(this, "Location not found", Toast.LENGTH_SHORT).show();
-            }
-        });
+            getLocation();
+        }
     }
 }
